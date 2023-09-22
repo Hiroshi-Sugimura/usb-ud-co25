@@ -4,6 +4,8 @@
 'use strict';
 
 const { SerialPort } = require('serialport');
+const { ReadlineParser } = require('@serialport/parser-readline');
+
 
 let udcd2s = {
 	callback: null,
@@ -35,25 +37,30 @@ let udcd2s = {
 	// return: {state: 'OK'}
 	// return: {state: 'connected', CO2:'606', HUM:'46.5', TMP:'29.8'}
 	parseResponse: function (recvData) {
-		// 初回接続、うまくいった
-		// recvData= <Buffer 4f 4b 20 53 54 41 0d 0a>
-		// toString()= OK STA
+		try {
+			// 初回接続、うまくいった
+			// recvData= <Buffer 4f 4b 20 53 54 41 0d 0a>
+			// toString()= OK STA
 
-		// 定期的に関数がコールされて、このようなデータを受信する
-		// recvData= <Buffer 43 4f 32 3d 36 30 36 2c 48 55 4d 3d 34 36 2e 35 2c 54 4d 50 3d 32 39 2e 38 0d 0a>
-		// toString()= CO2=606,HUM=46.5,TMP=29.8
-		let str = recvData.toString()
+			// 定期的に関数がコールされて、このようなデータを受信する
+			// recvData= <Buffer 43 4f 32 3d 36 30 36 2c 48 55 4d 3d 34 36 2e 35 2c 54 4d 50 3d 32 39 2e 38 0d 0a>
+			// toString()= CO2=606,HUM=46.5,TMP=29.8
+			// console.log(recvData);
+			let str = recvData.toString().split(/\r?\n/)[0];
 
-		if (str == 'OK STA¥n') {
-			return { state: 'OK' };
-		}
+			if (str == 'OK STA') {
+				return { state: 'OK' };
+			}
 
-		d = str.split(',');
-		return {
-			state: 'connected',
-			CO2: d[0].split('=')[1], // CO2
-			HUM: d[1].split('=')[1], // HUM
-			TMP: d[2].split('=')[1] // TMP
+			let d = str.split(',');
+			return {
+				state: 'connected',
+				CO2: d[0].split('=')[1], // CO2
+				HUM: d[1].split('=')[1], // HUM
+				TMP: d[2].split('=')[1] // TMP
+			}
+		} catch (e) {
+			return {state:'error'};
 		}
 	},
 
@@ -134,6 +141,9 @@ let udcd2s = {
 			}
 		});
 
+		// データを行にする
+		const parser = new ReadlineParser({ delimiter: '\r\n' });
+		udcd2s.port.pipe(parser);
 
 		// データを受信したときの処理登録
 		udcd2s.port.on('data', function (recvData) {
@@ -166,12 +176,12 @@ let udcd2s = {
 		});
 
 		// 準備できたので通信開始
-		port.write(startRequestData());
+		udcd2s.port.write(udcd2s.startRequestData());
 	},
 
 	stop: async function () {
 		if (udcd2s.port) {
-			await port.write(stopRequestData());
+			await udcd2s.port.write(udcd2s.stopRequestData());
 			await udcd2s.port.close();
 			udcd2s.port = null;
 		}

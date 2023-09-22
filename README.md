@@ -1,20 +1,13 @@
 # Overview
 
-このモジュールは**OMRONのUSB環境センサ(2JCIE-BU)**をサポートします．
+このモジュールは**I/O DATAのUSB CO2センサ(UD-CO2S)**をサポートします．
 非公式ですので、本モジュールに関してOMRON社様に問い合わせなどは行わないようにお願いします．
 
-This module provides **USB environment sensor (2JCIE-BU) producted by OMRON**.
+This module provides **USB environment sensor (UD-CO2S) producted by I/O DATA**.
 This module is informality.
 
 
-動作確認は 2JCIE-BU01 (https://www.fa.omron.co.jp/products/family/3724/lineup.html) で行いました．
-OMRON 公式ページより、USB ドライバーをダウンロードして PC にインストールしてください。
-
-
-NPMを見ると他にも開発されていますが、本モジュールの特徴は node-gyp に依存しないことです．
-Windows以外では利点にならないかもしれません．
-USBドングルは1つだけ対応しています。複数接続していても初めに発見した1つを利用します。
-
+動作確認は UD-CO2 (https://www.iodata.jp/product/tsushin/iot/ud-co2s/index.htm) で行いました．
 
 
 # Install
@@ -26,7 +19,7 @@ You can install the module as following command.
 
 
 ```bash
-npm i usb-2jcie-bu
+npm i usb-ud-co2s
 ```
 
 
@@ -40,31 +33,19 @@ Here is a demonstration script.
 ```JavaScript:Demo
 'use strict';
 
-const omron = require('usb-2jcie-bu');
-const cron = require('node-cron');
-require('date-utils');
+const udco2s = require('usb-ud-co2s');
 
+udco2s.start(  (res, error) => {
+	if( error ) {
+		console.error( '#', error );
+		return;
+	}
 
-
-// 2秒毎にチェック
-cron.schedule('*/2 * * * * *', () => {
-
-	// 重複起動は内部でチェックしているので、定期的にstartしておくとUSB抜き差しにも対応できる
-	omron.start(  (sensorData, error) => {
-		if( error ) {
-			console.error( error );
-			return;
-		}
-
-		console.log( '----------------------------' );
-		let dt = new Date();
-		console.log( dt );
-		console.dir( sensorData );
-	});
-
-
-	omron.requestData();
-});
+	console.log( '----------------------------' );
+	let dt = new Date();
+	console.log( dt );
+	console.dir( res );
+} );
 ```
 
 
@@ -72,20 +53,12 @@ cron.schedule('*/2 * * * * *', () => {
 # Data stracture
 
 ```JavaScript:stracture
-sensorData: {
-	'sequence_number': sequence_number,
-	'temperature': temperature,
-	'humidity': humidity,
-	'anbient_light': anbient_light,
-	'pressure': pressure,
-	'noise': noise,
-	'etvoc': etvoc,
-	'eco2': eco2,
-	'discomfort_index': discomfort_index,
-	'heat_stroke': heat_stroke
-}
+{ state: 'OK' }
 ```
 
+```
+{ state: 'connected', CO2: '623', HUM: '52.5', TMP: '28.9' }
+```
 
 # APIs
 
@@ -104,26 +77,6 @@ callback( sensorData, error )
 終了してportを開放します。
 
 
-## データのリクエスト
-
-- requestData()
-
-
-# 攻略情報
-
-定期的にデータを取得するにはcronモジュールを活用するとよいです。
-
-```
-const omron = require('usb-2jcie-bu');
-const cron = require('node-cron');
-
-// 2秒毎にチェック
-cron.schedule('*/2 * * * * *', () => {
-	omron.requestData();
-});
-```
-
-# meta data
 
 ## Authors
 
@@ -136,7 +89,7 @@ cron.schedule('*/2 * * * * *', () => {
 Thanks to Github users!
 
 - 参考にしたソース、Reference
-https://github.com/futomi/html5-omron-2jcie-bu
+https://sokosun.tumblr.com/post/705952427815337984/io-data-ud-co2s
 
 
 ## License
@@ -156,13 +109,6 @@ x Warranty
 
 ## Log
 
-- 1.2.0 LED settingを追加
-- 1.1.1 callbackないときのエラー処理
-- 1.1.0 callbackないときのエラー処理
-- 1.0.0 closeを作って一旦完成
-- 0.1.2 受信データ失敗の時のcallback無視
-- 0.1.1 ポート無いときのrequestData無視
-- 0.1.0 割と安定して動く版
-- 0.0.3 異常系対応（dongle無い、初期化2重呼び出し、エラー用callback）
-- 0.0.2 ちょっとできたので公開
-- 0.0.1 開発開始
+- 1.0.1 少し手直し
+- 1.0.0 動作確認済み
+- 0.0.1 開発開始、公開
