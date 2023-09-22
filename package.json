@@ -1,14 +1,14 @@
 {
-  "name": "usb-2jcie-bu",
-  "version": "1.2.0",
-  "description": "This module provides OMRON USB device (2JCIE-BU).",
+  "name": "usb-ud-co2s",
+  "version": "0.0.1",
+  "description": "This module provides I/O DATA USB device (UD-CO2S).",
   "main": "index.js",
   "scripts": {
     "test": "cd ..&& cd .. && npm test"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Hiroshi-Sugimura/usb-2jcie-bu.js"
+    "url": "https://github.com/Hiroshi-Sugimura/usb-ud-co2s.js"
   },
   "author": {
     "name": "Hiroshi SUGIMURA"
@@ -18,7 +18,7 @@
     "Environment sensor",
     "Smart house",
     "IoT",
-    "USB dongle"
+    "USB device"
   ],
   "dependencies": {
     "serialport": "^10.4.0"
