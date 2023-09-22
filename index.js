@@ -18,12 +18,17 @@ let udcd2s = {
 
 	//////////////////////////////////////////////////////////////////////
 	// リクエストデータ生成 (Uint8Array)
-	createRequestData: function () {
+	startRequestData: function () {
 		// command 'STA'
 		const req_data = new Uint8Array([0x53, 0x54, 0x41, 0x0d, 0x0a]);
 		return req_data;
 	},
 
+	stopRequestData: function () {
+		// command 'STP'
+		const req_data = new Uint8Array([0x53, 0x54, 0x50, 0x0d, 0x0a]);
+		return req_data;
+	},
 
 	//////////////////////////////////////////////////////////////////////
 	// レスポンスをパース
@@ -68,126 +73,118 @@ let udcd2s = {
 		return portList;
 	},
 
-	requestData: function () {
-		if (!omron.port) {  // まだポートがない
-			if (omron.callback) {
-				omron.callback(null, 'Error: usb-2jcie-bu.requestData(): port is not found.');
-			} else {
-				console.error('@usb-2jcie-bu Error: usb-2jcie-bu.requestData(): port is not found.');
-			}
-			return;
-		}
-		const b = omron.createRequestData();
-		// console.log('req:', b);
-		omron.port.write(b);
-	},
-
 	//////////////////////////////////////////////////////////////////////
 	// entry point
+	// callback = function (res, error)
 	start: async function (callback, options = {}) {
 
-		if (omron.port) {  // すでに通信している
-			if (omron.callback) {
-				omron.callback(null, 'Error: usb-2jcie-bu.start(): port is used already.');
+		if (udcd2s.port) {  // すでに通信している
+			if (udcd2s.callback) {
+				udcd2s.callback({ state: 'error' }, 'udcd2s.start(): port is used already.');
 			} else {
-				console.error('@usb-2jcie-bu Error: usb-2jcie-bu.start(): port is used already.');
+				console.error('udcd2s Error: udcd2s.start(): port is used already.');
 			}
 			return;
 		}
 
-		omron.portConfig = {  // default config set
+		udcd2s.portConfig = {  // default config set
 			path: 'COM3',
 			baudRate: 115200,
 			dataBits: 8,
 			stopBits: 1,
 			parity: 'none'
 		};
-		omron.port = null;
+		udcd2s.port = null;
 
 		if (callback) {
-			omron.callback = callback;
+			udcd2s.callback = callback;
 		} else {
-			console.log('Error: usb-2jcie-bu.start(): responceFunc is null.');
+			console.log('Error: udcd2s.start(): callback is null.');
 			return;
 		}
 
-		// 環境センサーに接続
+		// CO2センサーに接続
 		// ユーザーにシリアルポート選択画面を表示して選択を待ち受ける
-		let portList = await omron.getPortList();
+		let portList = await udcd2s.getPortList();
 		let com = await portList.filter((p) => {
-			if (p.vendorId == '0590' && p.productId == '00D4') {
+			if (p.vendorId == '04d8' && p.productId == 'e95a') {
 				return p;
 			}
 		});
 
-		if (com.length == 0) {  // センサー見つからない
-			if (omron.callback) {
-				omron.callback(null, 'Error: usb-2jcie-bu.start(): Sensor (2JCE-BU) is not found.');
+		if (com.length == 0) {  // センサー見つからない、対象ポートがない
+			if (udcd2s.callback) {
+				udcd2s.callback({ state: 'error' }, 'udcd2s.start(): Sensor (UD-CO2S) is not found.');
 			} else {
-				console.error('@usb-2jcie-bu Error: usb-2jcie-bu.start(): Sensor (2JCE-BU) is not found.');
+				console.error('udcd2s Error: udcd2s.start(): Sensor (UD-CO2S) is not found.');
 			}
 			return;
 		}
 
-		omron.portConfig.path = com[0].path;  // センサー見つかった
+		udcd2s.portConfig.path = com[0].path;  // センサー見つかった
 
-		omron.port = new SerialPort(omron.portConfig, function (err) {
+		udcd2s.port = new SerialPort(udcd2s.portConfig, function (err) {  // ポート利用開始
 			if (err) {
-				if (omron.callback) {
-					omron.callback(null, err);
+				if (udcd2s.callback) {
+					udcd2s.callback({ state: 'error' }, err);
 				} else {
-					console.error('@usb-2jcie-bu ' + err);
+					console.error('udcd2s ' + err);
 				}
 				return;
 			}
 		});
 
 
-		omron.port.on('data', function (recvData) {
-			let r = omron.parseResponse(recvData);
+		// データを受信したときの処理登録
+		udcd2s.port.on('data', function (recvData) {
+			let r = udcd2s.parseResponse(recvData);
 			if (r) {
-				if (omron.callback) {
-					omron.callback(r, null);
+				if (udcd2s.callback) {
+					udcd2s.callback(r, null);
 				} else {
 					console.dir(r);
 				}
 			} else {
-				if (omron.callback) {
-					omron.callback(null, 'Error: recvData is nothing.');
+				if (udcd2s.callback) {
+					udcd2s.callback({ state: 'error' }, 'recvData is nothing.');
 				}
 			}
 		});
 
 
-		// USB外したりしたとき
-		omron.port.on('close', function () {
-			if (omron.port) {
-				omron.port.close();
-				omron.port = null;
+		// USB外したりしたときの処理登録
+		udcd2s.port.on('close', function () {
+			if (udcd2s.port) {
+				udcd2s.port.close();
+				udcd2s.port = null;
 			}
 
-			if (omron.callback) {
-				omron.callback(null, 'INF: port is closed.');
-				omron.callback = null;
+			if (udcd2s.callback) {
+				udcd2s.callback({ state: 'warning' }, 'port is closed.');
+				udcd2s.callback = null;
 			}
 		});
+
+		// 準備できたので通信開始
+		port.write(startRequestData());
 	},
 
-	stop: function () {
-		if (omron.port) {
-			omron.port.close();
-			omron.port = null;
+	stop: async function () {
+		if (udcd2s.port) {
+			await port.write(stopRequestData());
+			await udcd2s.port.close();
+			udcd2s.port = null;
 		}
 
-		if (omron.callback) {
-			omron.callback(null, 'INF: port is closed.');
-			omron.callback = null;
+		if (udcd2s.callback) {
+			udcd2s.callback({ state: 'info' }, 'port is closed.');
+			udcd2s.callback = null;
 		}
 	}
 };
 
 
-module.exports = omron;
+module.exports = udcd2s;
 //////////////////////////////////////////////////////////////////////
 // EOF
 //////////////////////////////////////////////////////////////////////
